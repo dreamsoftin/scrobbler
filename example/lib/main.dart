@@ -30,8 +30,8 @@ class _MyAppState extends State<MyApp> {
     // Platform messages may fail, so we use a try/catch PlatformException.
     // We also handle the message potentially returning null.
     try {
-      platformVersion =
-          await Scrobbler.platformVersion ?? 'Unknown platform version';
+      platformVersion = "";
+          // (await Scrobbler.canStart()).toString() ?? 'Unknown platform version';
     } on PlatformException {
       platformVersion = 'Failed to get platform version.';
     }
@@ -53,10 +53,38 @@ class _MyAppState extends State<MyApp> {
         appBar: AppBar(
           title: const Text('Plugin example app'),
         ),
-        body: Center(
-          child: Text('Running on: $_platformVersion\n'),
+        body: Column(
+          children: [
+            FutureBuilder(
+              future: Scrobbler.isRunning(),
+              builder: (context,snapshot){
+
+            return Center(
+              child: Text('is Running ${snapshot.data}\n'),
+            );
+            }),
+          ],
         ),
+      bottomNavigationBar: Row(
+        children: [
+          IconButton(onPressed: () async {
+           await Scrobbler.start();
+           setState(() {
+             
+           });
+          }, icon: const Icon(Icons.play_arrow)
+          ),
+          IconButton(onPressed: () async {
+           await Scrobbler.stop();
+           setState(() {
+             
+           });
+          }, icon: const Icon(Icons.stop)
+          ),
+        ],
       ),
+      ),
+      
     );
   }
 }
