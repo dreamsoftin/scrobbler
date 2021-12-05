@@ -22,6 +22,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     initPlatformState();
+    Scrobbler.initialize();
   }
 
   // Platform messages are asynchronous, so we initialize in an async method.
@@ -68,6 +69,8 @@ class _MyAppState extends State<MyApp> {
       bottomNavigationBar: Row(
         children: [
           IconButton(onPressed: () async {
+            
+
            await Scrobbler.start();
            setState(() {
              
