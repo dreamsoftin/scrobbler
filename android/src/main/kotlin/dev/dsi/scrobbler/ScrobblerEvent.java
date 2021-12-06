@@ -33,6 +33,9 @@ class ScrobblerEvent {
         if(state > -1){
             map.put("state",state);
         }
+        if(app !=null){
+            map.put("app",app);
+        }
 
         return map;
     }

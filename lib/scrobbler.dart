@@ -5,7 +5,9 @@ import 'dart:ui';
 import 'package:flutter/services.dart';
 
 import 'callback_dispatcher.dart';
+import 'src/model/scrobler_event.dart';
 
+export 'src/model/index.dart';
 class Scrobbler {
   static const String _canStart = "can_start";
   static const String _start = "start";
@@ -68,8 +70,10 @@ class Scrobbler {
 
   ///
   /// Returns `bool` value representing whether service started or not.
-  ///
-  static Future<bool> start() async {
+  /// 
+  /// ## `callback` parameter should be a static or a global Function.
+  /// 
+  static Future<bool> start(Function(ScrobblerEvent event) callback) async {
     try {
       bool isGranted = await canStart();
       if (!isGranted) {
@@ -77,7 +81,7 @@ class Scrobbler {
         return false;
       }
       final List<dynamic> args = <dynamic>[
-      PluginUtilities.getCallbackHandle(testCallBack)!.toRawHandle()
+      PluginUtilities.getCallbackHandle(callback)!.toRawHandle()
     ];
       return (await _channel.invokeMethod("run",args)) ?? false;
     } catch (e) {
@@ -105,5 +109,11 @@ class Scrobbler {
 
 }
 void testCallBack(String s){
-  print("Hello Flutter  $s");
+  
+  // print("Hello Flutter  $s");
+  // IsolateNameServer.lookupPortByName("dev.dsi.scrobbler_port");
+} 
+
+class ScrobblerStorage{
+  // String get 
 }

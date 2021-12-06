@@ -39,6 +39,8 @@ class ScrobblerPlugin: FlutterPlugin, MethodCallHandler,ActivityAware {
   override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     channel = MethodChannel(flutterPluginBinding.binaryMessenger, "scrobbler")
     channel.setMethodCallHandler(this)
+    ListenerService.setBinaryMessenger(flutterPluginBinding.binaryMessenger);
+
   }
 
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
@@ -111,6 +113,9 @@ class ScrobblerPlugin: FlutterPlugin, MethodCallHandler,ActivityAware {
 
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
     channel.setMethodCallHandler(null)
+    ListenerService.setBinaryMessenger(null);
+
+//    ListenerService.flutterEngine = null;
   }
 
 

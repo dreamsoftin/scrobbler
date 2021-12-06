@@ -4,10 +4,12 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.AssetManager;
 import android.media.MediaMetadata;
 import android.media.session.MediaController;
 import android.media.session.MediaSessionManager;
 import android.media.session.PlaybackState;
+import android.provider.MediaStore;
 import android.service.notification.NotificationListenerService;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -24,10 +26,21 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
 
 //import dev.dsi.scrobbler.tracker.PlaybackTracker;
+import io.flutter.app.FlutterApplication;
+import io.flutter.embedding.android.FlutterView;
+import io.flutter.embedding.engine.FlutterEngine;
+import io.flutter.embedding.engine.dart.DartExecutor;
+import io.flutter.embedding.engine.loader.ApplicationInfoLoader;
+import io.flutter.embedding.engine.loader.FlutterApplicationInfo;
+import io.flutter.embedding.engine.plugins.shim.ShimPluginRegistry;
+import io.flutter.embedding.engine.plugins.util.GeneratedPluginRegister;
+import io.flutter.plugin.common.BinaryMessenger;
+import io.flutter.plugin.common.JSONMethodCodec;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.view.FlutterCallbackInformation;
@@ -39,7 +52,17 @@ public class ListenerService extends NotificationListenerService
         implements MediaSessionManager.OnActiveSessionsChangedListener , MethodChannel.MethodCallHandler {
 
     private static final String TAG = ListenerService.class.getName();
+    @Nullable
+    static private BinaryMessenger binaryMessenger;
 
+    private static FlutterEngine sBackgroundFlutterEngine;
+
+    static  void setBinaryMessenger(@Nullable BinaryMessenger messenger){
+        binaryMessenger = messenger;
+//        refreshMethodChannel();
+
+
+    }
     private List<MediaController> mediaControllers = new ArrayList<>();
     private Map<MediaController, MediaController.Callback> controllerCallbacks = new WeakHashMap<>();
 
@@ -81,7 +104,7 @@ public class ListenerService extends NotificationListenerService
         /*
         * Flutter Callback Related
         * */
-
+        refreshMethodChannel();
 
 
     }
@@ -89,12 +112,14 @@ public class ListenerService extends NotificationListenerService
     MethodChannel mBackgroundChannel;
 
     long callbackHandle;
+    FlutterCallbackInformation flutterCallbackInformation;
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        Log.d(TAG, "NotificationListenerService onStartCommand Started");
 
         long callbackDispatcherHandle = intent.getLongExtra("CALLBACK_DISPATCHER_HANDLE_KEY", 0);
 
-        FlutterCallbackInformation flutterCallbackInformation =
+        flutterCallbackInformation =
                 FlutterCallbackInformation.lookupCallbackInformation(callbackDispatcherHandle);
 
         FlutterRunArguments flutterRunArguments = new FlutterRunArguments();
@@ -102,24 +127,52 @@ public class ListenerService extends NotificationListenerService
         flutterRunArguments.entrypoint = flutterCallbackInformation.callbackName;
         flutterRunArguments.libraryPath = flutterCallbackInformation.callbackLibraryPath;
 
-        FlutterNativeView backgroundFlutterView = new FlutterNativeView(this, true);
-        backgroundFlutterView.runFromBundle(flutterRunArguments);
+//        FlutterNativeView backgroundFlutterView = new FlutterNativeView(this,true);
 
-        mBackgroundChannel = new MethodChannel(backgroundFlutterView, "background_channel");
-        mBackgroundChannel.setMethodCallHandler(this);
+//        GeneratedPluginRegister.registerGeneratedPlugins(backgroundFlutterView);
+
+//        mBackgroundChannel = new MethodChannel(backgroundFlutterView, "background_channel");
+//        mBackgroundChannel.setMethodCallHandler(this);
+        Log.d(TAG, "NotificationListenerService Registred Method channel");
 
         callbackHandle = intent.getLongExtra("CALLBACK_HANDLE_KEY", 0);
+        Log.d(TAG, "NotificationListenerService Registred callbackHandle "+callbackHandle);
+        if(sBackgroundFlutterEngine ==null){
+            sBackgroundFlutterEngine = new FlutterEngine(this);
+            DartExecutor executor = sBackgroundFlutterEngine.getDartExecutor();
+            // Create the Transmitter channel
+            mBackgroundChannel = new MethodChannel(executor, "background_channel");
+            mBackgroundChannel.setMethodCallHandler(this);
 
+        }
 //     invoke("Service Started");
 
         return START_STICKY;
     }
 
-    private void invoke(HashMap content){
-        if(mBackgroundChannel == null) return;
+    private void invoke(HashMap content) {
+  //      FlutterMain.startInitialization(this);
+//        FlutterMain.ensureInitializationComplete(this, null);
+        FlutterApplicationInfo info = ApplicationInfoLoader.load(this);
+        String appBundlePath = info.flutterAssetsDir;
+        if(sBackgroundFlutterEngine ==null){
+            sBackgroundFlutterEngine = new FlutterEngine(this);
+            DartExecutor executor = sBackgroundFlutterEngine.getDartExecutor();
+            // Create the Transmitter channel
+            mBackgroundChannel = new MethodChannel(executor, "background_channel");
+            mBackgroundChannel.setMethodCallHandler(this);
+
+        }
+        if(flutterCallbackInformation == null) return;
+        DartExecutor executor = sBackgroundFlutterEngine.getDartExecutor();
+        AssetManager assets = this.getAssets();
+        DartExecutor.DartCallback dartCallback = new DartExecutor.DartCallback(assets, appBundlePath, flutterCallbackInformation);
+        executor.executeDartCallback(dartCallback);
+
         final ArrayList<Object> l = new ArrayList<Object>();
         l.add(callbackHandle);
         l.add(content);
+        Log.d(TAG, "Invoking Method with args"+l.toString());
 
         mBackgroundChannel.invokeMethod("", l);
     }
@@ -127,7 +180,19 @@ public class ListenerService extends NotificationListenerService
         return NotificationManagerCompat.getEnabledListenerPackages(context)
                 .contains(context.getPackageName());
     }
+//    private static FlutterEngine sBackgroundFlutterEngine;
 
+
+    void refreshMethodChannel(){
+        Log.d(TAG, "Invoke Method Failed due to No method channel set.");
+        FlutterApplicationInfo info = ApplicationInfoLoader.load(this);
+//        String appBundlePath = info.flutterAssetsDir;
+//
+//        AssetManager assets = this.getAssets();
+
+//        mBackgroundChannel.setMethodCallHandler(this);
+
+    }
     @Override
     public void onActiveSessionsChanged(List<MediaController> activeMediaControllers) {
         Log.d(TAG, "Active MediaSessions changed");
@@ -212,6 +277,8 @@ public class ListenerService extends NotificationListenerService
 
     private void controllerPlaybackStateChanged(MediaController controller, PlaybackState state) {
         controller.getPackageName();
+        MediaMetadata metadata =  controller.getMetadata();
+        if(metadata ==null || metadata.keySet().size() <=0 || state == null) return;
         Log.d(TAG, "controller Playback State Changed "+ logMetadata(controller.getMetadata())+ " "+state);
 
         ScrobblerEvent event = new ScrobblerEvent(
@@ -260,4 +327,39 @@ public class ListenerService extends NotificationListenerService
     public void onMethodCall(@NonNull MethodCall call, @NonNull MethodChannel.Result result) {
         Log.d(TAG, "onMethodCall: "+call.method);
     }
+
+//    private void startBackgroundIsolate() {
+//        if (sBackgroundFlutterEngine != null) {
+//            Log.w(TAG, "Background isolate already started");
+//            return;
+//        }
+//
+//        FlutterApplicationInfo info = ApplicationInfoLoader.load(getBaseContext());
+//        String appBundlePath = info.flutterAssetsDir;
+//
+//        AssetManager assets = mContext.getAssets();
+//        if (!sHeadlessTaskRegistered.get()) {
+//            sBackgroundFlutterEngine = new FlutterEngine(mContext);
+//            DartExecutor executor = sBackgroundFlutterEngine.getDartExecutor();
+//            // Create the Transmitter channel
+//            sDispatchChannel = new MethodChannel(executor, "background_channel", JSONMethodCodec.INSTANCE);
+//            sDispatchChannel.setMethodCallHandler(this);
+//
+//            FlutterCallbackInformation callbackInfo = FlutterCallbackInformation.lookupCallbackInformation(mRegistrationCallbackId);
+//
+//            if (callbackInfo == null) {
+//                Log.e(BackgroundFetch.TAG, "Fatal: failed to find callback: " + mRegistrationCallbackId);
+//                BackgroundFetch.getInstance(mContext).finish(mTask.getTaskId());
+//                return;
+//            }
+//            DartExecutor.DartCallback dartCallback = new DartExecutor.DartCallback(assets, appBundlePath, callbackInfo);
+//            executor.executeDartCallback(dartCallback);
+//
+//            // The pluginRegistrantCallback should only be set in the V1 embedding as
+//            // plugin registration is done via reflection in the V2 embedding.
+//            if (sPluginRegistrantCallback != null) {
+//                sPluginRegistrantCallback.registerWith(new ShimPluginRegistry(sBackgroundFlutterEngine));
+//            }
+//        }
+//    }
 }

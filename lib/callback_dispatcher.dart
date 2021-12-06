@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:scrobbler/scrobbler.dart';
 
 void callbackDispatcher() {
   
@@ -14,7 +15,11 @@ void callbackDispatcher() {
 
   // 3. Listen for background events from the platform portion of the plugin.
   _backgroundChannel.setMethodCallHandler((MethodCall call) async {
-      // print("callbackDispatcher: On Mehod Call ${call.method} with args ${call.arguments}");
+      print("callbackDispatcher: On Mehod Call ${call.method} with args ${call.arguments}");
+
+
+  WidgetsFlutterBinding.ensureInitialized();
+      print("callbackDispatcher: WidgetsFlutterBinding.ensureInitialized() Completed");
 
       final List<dynamic> args = call.arguments;
     
@@ -30,7 +35,7 @@ void callbackDispatcher() {
     
       // print("callbackDispatcher: Invoking function $callbackThis  with Args $s");
     // 3.3. Invoke callback.
-      callbackThis!.call(json.encode(s));
+      callbackThis!.call( ScrobblerEvent.fromJson( json.encode(s)));
       // print("callbackDispatcher: Invoked function $callbackThis  with Args $s");
 
 
