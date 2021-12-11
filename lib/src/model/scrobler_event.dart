@@ -52,14 +52,14 @@ class ScrobblerEvent {
     );
   }
 
-  // Map<String, dynamic> toMap() {
-  //   return {
-  //     'event': event,
-  //     'app': app,
-  //     'track': track?.toMap(),
-  //     'state': state,
-  //   };
-  // }
+  Map<String, dynamic> toMap() {
+    return {
+      'event': event,
+      'app': app,
+      'track': track?.toMap(),
+      'state': state,
+    };
+  }
 
   factory ScrobblerEvent.fromMap(Map<String, dynamic> map) {
     return ScrobblerEvent(

@@ -1,16 +1,15 @@
 import 'dart:async';
+import 'dart:developer';
 import 'dart:isolate';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:scrobbler/scrobbler.dart';
 import 'package:scrobbler_example/view.dart';
 
 Future<void> main() async {
   // await Hive.initFlutter();
-  await LocalStorage.instance.init();
+  await AppDatabase.instance.init();
   runApp(const MyApp());
 }
 
@@ -21,122 +20,112 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   String _platformVersion = 'Unknown';
   Box? hiveBox;
-  // @override
-  // void initState() {
-  //   super.initState();
-  //   initPlatformState();
-  //   Scrobbler.initialize();
-
-  // bool isregistered =   IsolateNameServer.registerPortWithName(receivePort.sendPort, "data_reciver");
-  
-  //   if(isregistered){
-  //     log("APP: Port Registred");
-  //   }
-  //   else{
-  //   IsolateNameServer.removePortNameMapping("data_reciver");
-
-  //     log("APP:Failed to  Port Registred");
-      
-  //   }
-  // }
-
-
-
-  // @override
-  // void dispose() {
-  //   IsolateNameServer.removePortNameMapping("data_reciver");
-  //     log("APP:Unregistering Port.");
-
-  //   receivePort.close();
-  //   super.dispose();
-  // }
-  // ReceivePort receivePort = ReceivePort("data_reciver");
-
-  // Platform messages are asynchronous, so we initialize in an async method.
-  Future<void> initPlatformState() async {
-    String platformVersion;
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    // We also handle the message potentially returning null.
-    try {
-      platformVersion = "";
-      hiveBox = await LocalStorage.instance
-          .openScrobblerBox(); //await Hive.openBox("scrobbled");
-
-      // (await Scrobbler.canStart()).toString() ?? 'Unknown platform version';
-    } on PlatformException {
-      platformVersion = 'Failed to get platform version.';
-    }
-
-    // If the widget was removed from the tree while the asynchronous platform
-    // message was in flight, we want to discard the reply rather than calling
-    // setState to update our non-existent appearance.
-    if (!mounted) return;
-
-    setState(() {
-      _platformVersion = platformVersion;
-    });
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance?.addObserver(this);
   }
 
-  String text = "";
+  @override
+  void dispose() {
+    super.dispose();
+    WidgetsBinding.instance?.removeObserver(this);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: PortDataView()
-      
-    );
+    return const MaterialApp(home: PortDataView());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    AppDatabase.instance.didChangeAppLifecycleState(state);
   }
 }
 
-Future<void> onScrobblerEvent(ScrobblerEvent event) async {
-  print("onScrobblerEvent: " + event.event);
-
-  //  Hive.init(path);
-  // await Hive.initFlutter();
-  await LocalStorage.instance.init();
-
-  var box = await LocalStorage.instance
-      .openScrobblerBox(); //await Hive.openBox('scrobbled');
-
-  String previous = box.get("event", defaultValue: "");
-  box.put("event", "\n${DateTime.now()} " + event.toString()+previous);
-  // log("onScrobblerEvent: Stored. data is: " +
-  //     box.get("event", defaultValue: "--"));
-
-  final sendPort = IsolateNameServer.lookupPortByName("data_reciver");
-  if(sendPort == null) return;
-  print("onScrobblerEvent: Sendport is Available for data_reciver");
-  sendPort.send(box.get("event", defaultValue: "--"));
-  print("onScrobblerEvent: Send to data_reciver");
-
-  box.put("event", "");
-}
-
-class LocalStorage {
-  static LocalStorage instance = LocalStorage._();
-  LocalStorage._();
+class AppDatabase {
+  static AppDatabase instance = AppDatabase._();
+  AppDatabase._();
   bool isInitialized = false;
+  Box? box;
+  ReceivePort receivePort = ReceivePort("data_reciver");
+
+  void _registerPort() {
+    receivePort = ReceivePort("data_reciver");
+
+    bool isregistered = IsolateNameServer.registerPortWithName(
+      receivePort.sendPort,
+      "data_reciver",
+    );
+
+    if (isregistered) {
+      receivePort.listen((data) {
+        writeIntoBox(data as Map);
+      });
+
+      log("APP: Port Registred");
+      final sendPort =  IsolateNameServer.lookupPortByName("background_thread");
+      sendPort?.send("sync");
+    } else {
+      IsolateNameServer.removePortNameMapping("data_reciver");
+      return _registerPort();
+      // log("APP:Failed to  Port Registred");
+    }
+  }
+
+  void unregisterPort() {
+    IsolateNameServer.removePortNameMapping("data_reciver");
+    log("APP:Unregistering Port.");
+
+    receivePort.close();
+  }
+
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    log("APP:didChangeAppLifecycleState.");
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _registerPort();
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        unregisterPort();
+        break;
+    }
+  }
+
   init() async {
     if (isInitialized) return;
     await Hive.initFlutter();
+    _registerPort();
+    box = await openScrobblerBox();
+
     isInitialized = true;
   }
+
+  StreamController streamController = StreamController<String>.broadcast();
 
   // Box? box;
 
   Future<Box> openScrobblerBox() async {
-    if (!Hive.isBoxOpen("Scrobbler")) {
-      await Hive.openBox("Scrobbler");
+    if (!Hive.isBoxOpen("app_box")) {
+      await Hive.openBox("app_box");
     }
-    return Hive.box("Scrobbler");
+    var box = Hive.box("app_box");
+    box.watch().listen((event) {
+      streamController.add(box.toMap().values.length.toString());
+    });
+    return box;
   }
-}
 
-class IsolatedDB{
-  ReceivePort receivePort = ReceivePort("");
-  static spawn() async{
-
+  Future<void> writeIntoBox(Map<dynamic,dynamic> scrobbled) async {
+    if(scrobbled.isEmpty) return;
+    box ??= await openScrobblerBox();
+    // String? previous = box!.get("event");
+    box!.putAll(scrobbled);
   }
 }

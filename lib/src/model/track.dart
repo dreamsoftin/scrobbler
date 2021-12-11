@@ -113,19 +113,19 @@ class Track {
     );
   }
 
-  // Map<String, dynamic> toMap() {
-  //   return {
-  //     'id': id,
-  //     'title': title,
-  //     'subtitle': subtitle,
-  //     'artist': artist,
-  //     'composer': composer,
-  //     'album': album,
-  //     'albumArtist': albumArtist,
-  //     'duration': duration,
-  //     'art': art,
-  //   };
-  // }
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'title': title,
+      'subtitle': subtitle,
+      'artist': artist,
+      'composer': composer,
+      'album': album,
+      'albumArtist': albumArtist,
+      'duration': duration,
+      'art': art,
+    };
+  }
 
   factory Track.fromMap(Map<String, dynamic> map) {
     return Track(
@@ -147,7 +147,7 @@ class Track {
 
   @override
   String toString() {
-    return 'Track(id: $id, title: $title, subtitle: $subtitle, artist: $artist, composer: $composer, album: $album, albumArtist: $albumArtist, duration: $duration, art: $art)';
+    return 'Track(id: $id, title: $title, )'; //subtitle: $subtitle, artist: $artist, composer: $composer, album: $album, albumArtist: $albumArtist, duration: $duration, art: $art
   }
 
   @override
