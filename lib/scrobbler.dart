@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'dart:ui';
 
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'callback_dispatcher.dart';
 import 'src/model/scrobler_event.dart';
@@ -10,8 +11,6 @@ import 'src/model/scrobler_event.dart';
 export 'src/model/index.dart';
 class Scrobbler {
   static const String _canStart = "can_start";
-  static const String _start = "start";
-  static const String _stop = "stop";
   static const String _requestPermission = "request_permission";
   static const String _isServiceRunning = "is_service_running";
 
@@ -23,12 +22,6 @@ class Scrobbler {
     var raw = callback!.toRawHandle();
     await _channel.invokeMethod('initializeService', <dynamic>[raw]);
   }
-
-  static void test(void Function(String s) callback) async {
-    var raw = PluginUtilities.getCallbackHandle(callback)!.toRawHandle();
-    await _channel.invokeMethod('run', [raw]);
-  }
-
 
 
   ///
@@ -49,7 +42,8 @@ class Scrobbler {
   ///
   static Future<bool> isRunning() async {
     try {
-      return (await _channel.invokeMethod<bool>(_isServiceRunning)) ?? false;
+      SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+      return ((await _channel.invokeMethod<bool>(_isServiceRunning)) ?? false) && (sharedPreferences.getInt("scobller_registered_callback")!=null);
     } catch (e) {
       log("Scrobbler Exception: $e");
 
@@ -80,9 +74,13 @@ class Scrobbler {
         await openSettings();
         return false;
       }
+      var rawHandle = PluginUtilities.getCallbackHandle(callback)!.toRawHandle();
       final List<dynamic> args = <dynamic>[
-      PluginUtilities.getCallbackHandle(callback)!.toRawHandle()
+      rawHandle
     ];
+    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+  sharedPreferences.setInt("scobller_registered_callback", rawHandle);
+  
       return (await _channel.invokeMethod("run",args)) ?? false;
     } catch (e) {
       log("Scrobbler Exception: $e");
@@ -98,7 +96,15 @@ class Scrobbler {
   ///
   static Future<bool> stop() async {
     try {
-      return (await _channel.invokeMethod<bool>(_stop)) ?? false;
+    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+
+return  sharedPreferences.remove("scobller_registered_callback");
+
+
+
+  // const MethodChannel _backgroundChannel = MethodChannel('background_channel');
+
+  //     return (await _backgroundChannel.invokeMethod<bool>(_stop)) ?? false;
     } catch (e) {
       log("Scrobbler Exception: $e");
 
@@ -107,13 +113,4 @@ class Scrobbler {
   }
 
 
-}
-void testCallBack(String s){
-  
-  // print("Hello Flutter  $s");
-  // IsolateNameServer.lookupPortByName("dev.dsi.scrobbler_port");
-} 
-
-class ScrobblerStorage{
-  // String get 
 }

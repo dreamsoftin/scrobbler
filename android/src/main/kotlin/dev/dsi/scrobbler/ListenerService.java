@@ -111,21 +111,17 @@ public class ListenerService extends NotificationListenerService
     @Nullable
     MethodChannel mBackgroundChannel;
 
-    long callbackHandle;
+    @Nullable
+    Long callbackHandle;
+    Long callbackDispatcherHandle;
     FlutterCallbackInformation flutterCallbackInformation;
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "NotificationListenerService onStartCommand Started");
 
-        long callbackDispatcherHandle = intent.getLongExtra("CALLBACK_DISPATCHER_HANDLE_KEY", 0);
+        callbackDispatcherHandle = intent.getLongExtra("CALLBACK_DISPATCHER_HANDLE_KEY", 0);
 
-        flutterCallbackInformation =
-                FlutterCallbackInformation.lookupCallbackInformation(callbackDispatcherHandle);
 
-        FlutterRunArguments flutterRunArguments = new FlutterRunArguments();
-        flutterRunArguments.bundlePath = FlutterMain.findAppBundlePath();
-        flutterRunArguments.entrypoint = flutterCallbackInformation.callbackName;
-        flutterRunArguments.libraryPath = flutterCallbackInformation.callbackLibraryPath;
 
 //        FlutterNativeView backgroundFlutterView = new FlutterNativeView(this,true);
 
@@ -151,6 +147,7 @@ public class ListenerService extends NotificationListenerService
     }
 
     private void invoke(HashMap content) {
+        if(callbackHandle == null) return;
   //      FlutterMain.startInitialization(this);
 //        FlutterMain.ensureInitializationComplete(this, null);
         FlutterApplicationInfo info = ApplicationInfoLoader.load(this);
@@ -163,7 +160,15 @@ public class ListenerService extends NotificationListenerService
             mBackgroundChannel.setMethodCallHandler(this);
 
         }
-        if(flutterCallbackInformation == null) return;
+        if(flutterCallbackInformation == null){
+            flutterCallbackInformation =
+                    FlutterCallbackInformation.lookupCallbackInformation(callbackDispatcherHandle);
+
+            FlutterRunArguments flutterRunArguments = new FlutterRunArguments();
+            flutterRunArguments.bundlePath = FlutterMain.findAppBundlePath();
+            flutterRunArguments.entrypoint = flutterCallbackInformation.callbackName;
+            flutterRunArguments.libraryPath = flutterCallbackInformation.callbackLibraryPath;
+        }
         DartExecutor executor = sBackgroundFlutterEngine.getDartExecutor();
         AssetManager assets = this.getAssets();
         DartExecutor.DartCallback dartCallback = new DartExecutor.DartCallback(assets, appBundlePath, flutterCallbackInformation);
@@ -173,7 +178,7 @@ public class ListenerService extends NotificationListenerService
         l.add(callbackHandle);
         l.add(content);
         Log.d(TAG, "Invoking Method with args"+l.toString());
-
+//
         mBackgroundChannel.invokeMethod("", l);
     }
     public static boolean isNotificationAccessEnabled(Context context) {
@@ -326,6 +331,14 @@ public class ListenerService extends NotificationListenerService
     @Override
     public void onMethodCall(@NonNull MethodCall call, @NonNull MethodChannel.Result result) {
         Log.d(TAG, "onMethodCall: "+call.method);
+    }
+
+    public void unregisterCallback() {
+
+        callbackHandle = null;
+    }
+    public  void registerCallback(long handler){
+        callbackHandle = handler;
     }
 
 //    private void startBackgroundIsolate() {

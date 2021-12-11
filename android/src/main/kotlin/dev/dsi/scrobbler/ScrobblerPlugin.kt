@@ -51,16 +51,7 @@ class ScrobblerPlugin: FlutterPlugin, MethodCallHandler,ActivityAware {
       result.success(null)
       return
     }
-//    else if (call.method.equals("run")) {
-//      val args: ArrayList<*> = call.arguments()
-//      val callbackHandle = args[0] as Long
-//      val i = Intent(mContext, MyService::class.java)
-//      i.putExtra(CALLBACK_HANDLE_KEY, callbackHandle)
-//      i.putExtra(CALLBACK_DISPATCHER_HANDLE_KEY, mCallbackDispatcherHandle)
-//      mContext.startService(i)
-//      result.success(null)
-//      return
-//    }
+
     when (call.method) {
         "can_start" -> {
           return result.success(ListenerService.isNotificationAccessEnabled(activity))
@@ -102,7 +93,7 @@ class ScrobblerPlugin: FlutterPlugin, MethodCallHandler,ActivityAware {
             stopListenerService();
             result.success(true);
           } catch (e: Exception){
-            result.error(e.message,e.message,e.stackTrace);
+            result.error(e.message,e.message,e.stackTrace.toString());
           }
         }
         else -> {
@@ -133,7 +124,14 @@ class ScrobblerPlugin: FlutterPlugin, MethodCallHandler,ActivityAware {
 
   private fun stopListenerService() {
     if(activity == null) return;
-    activity!!.stopService(Intent(activity, ListenerService::class.java))
+    val manager = activity?.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+    for (service in manager.getRunningServices(Int.MAX_VALUE)) {
+      if (ListenerService::class.java.name == service.service.className) {
+        (service.service as ListenerService).unregisterCallback()
+      }
+    }
+//    activity!!.re
+//    activity!!.stopService(Intent(activity, ListenerService::class.java))
   }
 
   fun  requestPermission(){
