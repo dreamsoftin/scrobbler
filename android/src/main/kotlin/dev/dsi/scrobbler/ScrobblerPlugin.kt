@@ -45,7 +45,11 @@ class ScrobblerPlugin: FlutterPlugin, MethodCallHandler,ActivityAware {
 
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
     if (call.method.equals("initializeService")) {
-      val args: ArrayList<*> = call.arguments()
+      val args: ArrayList<*>? = call.arguments()
+      if(args==null) {
+        result.error("INVALID_ARGUMENTS", "Invalid arguments", null)
+        return
+      }
       val callBackHandle = args[0] as Long
       mCallbackDispatcherHandle = callBackHandle
       result.success(null)
@@ -57,8 +61,12 @@ class ScrobblerPlugin: FlutterPlugin, MethodCallHandler,ActivityAware {
           return result.success(ListenerService.isNotificationAccessEnabled(activity))
         }
         "run"->{
-          val args: ArrayList<*> = call.arguments()
-          val callbackHandle = args[0] as Long
+          val args: ArrayList<*>? = call.arguments()
+         if(args==null) {
+        result.error("INVALID_ARGUMENTS", "Invalid arguments", null)
+        return
+      }
+        val callbackHandle = args[0] as Long
 
           val i = Intent(activity, ListenerService::class.java)
           i.putExtra(CALLBACK_HANDLE_KEY, callbackHandle)
@@ -93,7 +101,7 @@ class ScrobblerPlugin: FlutterPlugin, MethodCallHandler,ActivityAware {
             stopListenerService();
             result.success(true);
           } catch (e: Exception){
-            result.error(e.message,e.message,e.stackTrace.toString());
+            result.error("Failed to Stop.",e.message,e.stackTrace.toString());
           }
         }
         else -> {

@@ -1,7 +1,5 @@
-
 import 'package:flutter/material.dart';
 import 'package:scrobbler/scrobbler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'background_listner/background_listner.dart';
 import 'main.dart';
@@ -19,7 +17,7 @@ class _PortDataViewState extends State<PortDataView>
   void initState() {
     super.initState();
     // initPlatformState();
-    WidgetsBinding.instance?.addObserver(this);
+    WidgetsBinding.instance.addObserver(this);
     Scrobbler.initialize();
 
     // registerPort();
@@ -40,7 +38,7 @@ class _PortDataViewState extends State<PortDataView>
 //       log("APP:Failed to  Port Registred");
 //     }
 //     setState(() {
-      
+
 //     });
 //   }
 
@@ -129,7 +127,6 @@ class _PortDataViewState extends State<PortDataView>
               onPressed: () async {
                 // (await SharedPreferences.getInstance()).setString("isActive", "NO");
                 await Scrobbler.stop();
-
 
                 setState(() {});
               },
