@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:scrobbler/scrobbler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_android/shared_preferences_android.dart';
-import 'package:shared_preferences_ios/shared_preferences_ios.dart';
+
 ///
 ///## Very Importent Method.
 ///
@@ -37,7 +37,7 @@ void callbackDispatcher() {
 
     WidgetsFlutterBinding.ensureInitialized();
     if (Platform.isAndroid) SharedPreferencesAndroid.registerWith();
-if (Platform.isIOS) SharedPreferencesIOS.registerWith();
+// if (Platform.isIOS) SharedPreferencesIOS.registerWith();
     SharedPreferences preferences = await SharedPreferences.getInstance();
     await preferences.reload();
 
